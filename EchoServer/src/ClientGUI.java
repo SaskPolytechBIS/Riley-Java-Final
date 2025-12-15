@@ -18,6 +18,9 @@ import java.nio.file.Files;
  * - Improved layout: fields on the left, vertically stacked buttons on the right
  * - Simple visual tweaks: default font, spacing and button styling
  *
+ * The PM button uses a two-field dialog (target + message) and validates input
+ * before sending to avoid malformed PMs.
+ *
  * Do NOT remove the commented blocks below; they are intentionally preserved for easy re-enable.
  */
 public class ClientGUI extends JFrame implements ChatIF {
@@ -301,13 +304,60 @@ public class ClientGUI extends JFrame implements ChatIF {
 
         userListB.addActionListener(e -> send("#who"));
 
+        // PM button: show a small two-field dialog (Target, Message), validate, then send
         pmB.addActionListener(e -> {
-            String input = JOptionPane.showInputDialog(ClientGUI.this,
-                    "Enter 'target message' (e.g. alice Hi):", "Private Message", JOptionPane.PLAIN_MESSAGE);
-            if (input != null && !input.trim().isEmpty()) {
-                send("#pm " + input.trim());
+            // Build a panel with two labels/fields for a clearer input UI
+            JPanel panel = new JPanel(new GridBagLayout());
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.insets = new Insets(4, 4, 4, 4);
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+            gbc.gridx = 0;
+            gbc.gridy = 0;
+            panel.add(new JLabel("Target (username):"), gbc);
+            gbc.gridx = 1;
+            JTextField targetField = new JTextField(12);
+            panel.add(targetField, gbc);
+
+            gbc.gridx = 0;
+            gbc.gridy = 1;
+            panel.add(new JLabel("Message:"), gbc);
+            gbc.gridx = 1;
+            JTextField msgField = new JTextField(18);
+            panel.add(msgField, gbc);
+
+            int result = JOptionPane.showConfirmDialog(
+                    ClientGUI.this,
+                    panel,
+                    "Private Message",
+                    JOptionPane.OK_CANCEL_OPTION,
+                    JOptionPane.PLAIN_MESSAGE);
+
+            if (result == JOptionPane.OK_OPTION) {
+                String target = targetField.getText();
+                String text = msgField.getText();
+                if (target == null) target = "";
+                if (text == null) text = "";
+
+                target = target.trim();
+                text = text.trim();
+
+                if (target.length() == 0) {
+                    display("PM cancelled: target is empty. Usage: specify username.");
+                    return;
+                }
+                if (text.length() == 0) {
+                    display("PM cancelled: message is empty. Usage: enter a message.");
+                    return;
+                }
+
+                // Send using the same command format the client expects
+                send("#pm " + target + " " + text);
+            } else {
+                display("PM cancelled");
             }
         });
+
+        pmB.setEnabled(true); // make sure enabled
 
         // create ChatClient to handle messages
         try {

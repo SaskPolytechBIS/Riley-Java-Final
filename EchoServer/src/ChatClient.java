@@ -4,6 +4,8 @@ import java.util.ArrayList;
 /**
  * This class overrides some of the methods defined in the abstract superclass
  * in order to give more functionality to the client.
+ *
+ * Robust PM parsing is preserved; DEBUG messages removed.
  */
 public class ChatClient extends AbstractClient {
     //Instance variables **********************************************
@@ -69,13 +71,17 @@ public class ChatClient extends AbstractClient {
         {
             ArrayList<String> clients = (ArrayList<String>)env.getData();
 
-            System.out.println("--- Printing out all clients on The List ---");
+            // Display the list in the GUI so users can see it.
+            clientUI.display("--- Printing out all clients on The List ---");
 
-            //loop through the array list
-            for(int i = 0; i < clients.size(); i++)
-            {
-                //for an array list .get(i) works like [i] for an array
-                System.out.println(clients.get(i));
+            if (clients != null) {
+                //loop through the array list and display each entry in the GUI
+                for(int i = 0; i < clients.size(); i++)
+                {
+                    clientUI.display(clients.get(i));
+                }
+            } else {
+                clientUI.display("(no clients found)");
             }
             return;
         }
@@ -135,13 +141,21 @@ public class ChatClient extends AbstractClient {
      */
     public void handleMessageFromClientUI(String message) {
 
-        //if first character is #, handle it as a command
-        if (message.charAt(0) == '#') {
+        // Guard against null or empty input (prevents charAt(0) errors)
+        if (message == null) {
+            return;
+        }
+        String trimmed = message.trim();
+        if (trimmed.length() == 0) {
+            return;
+        }
 
-            handleClientCommand(message);
-
+        // If first non-whitespace character is '#', treat as command (use trimmed for command parsing)
+        if (trimmed.charAt(0) == '#') {
+            handleClientCommand(trimmed);
         } else {
             try {
+                // Send the original message (preserve user's spacing) to the server
                 sendToServer(message);
             } catch (IOException e) {
                 clientUI.display("Could not send message to server.  Terminating client.......");
@@ -179,6 +193,7 @@ public class ChatClient extends AbstractClient {
      */
     protected void connectionEstablished(){
         System.out.println("Connected to server at "+ getHost() + " on port "+getPort());
+        // no debug display to GUI here (clean)
     }
     
     public void handleClientCommand(String message) {
@@ -214,14 +229,6 @@ public class ChatClient extends AbstractClient {
             if (isConnected()) {
                 clientUI.display("Cannot change port while connected");
             } else {
-                //setPort()
-                //Integer.parseInt()
-                //message.substring(9, message.length())
-                //#setPort 5556
-                //"5556"
-                
-                //String portNum = message.substring(8,message.length()).trim();
-                //portNum = portNum.trim();
                 setPort(Integer.parseInt(message.substring(9, message.length())));
             }
 
@@ -281,37 +288,35 @@ public class ChatClient extends AbstractClient {
             }
         }
         
-        //#pm mike hi mike!
-        if(message.indexOf("#pm") == 0)
-        {
+        // #pm <target> <message>  (robust, without debug)
+        if (message.indexOf("#pm") == 0) {
             Envelope env = new Envelope();
             env.setCommand("pm");
-            
-            //hannah hi hannah!
-            String targetAndText = message.substring(4, message.length());
-            
-            //hann
-            String target = targetAndText.substring(0, targetAndText.indexOf(" "));
-            
-            //h hi hannah!
-            //this line is storing the text of the pm
-            //targetAndText is the original message without #pm
-            //substring lets us get part of a string
-            //indexOf(" ") lets us get the position of the first space
-            //we add +1 so we dont include the space in the text
-            String text = targetAndText.substring(targetAndText.indexOf(" ")+1, targetAndText.length());
-            
+
+            // Get the rest of the input after "#pm "
+            String targetAndText = message.substring(4).trim(); // removes leading/trailing spaces
+
+            // Validate format: must contain target and message separated by a space
+            int firstSpace = targetAndText.indexOf(' ');
+            if (firstSpace <= 0) {
+                // Either no space (no message) or empty target — show usage instead of crashing
+                clientUI.display("PM format error. Correct usage: #pm <target> <message>");
+                return;
+            }
+
+            String target = targetAndText.substring(0, firstSpace);
+            String text = targetAndText.substring(firstSpace + 1);
+
             env.setArg(target);
             env.setData(text);
-            
-            //try sending the envelope to the server
+
+            // try sending the envelope to the server
             try {
                 sendToServer(env);
             } catch (IOException e) {
                 clientUI.display("Could not send message to server.  Terminating client.......");
                 quit();
             }
-                      
         }
         
         if(message.equals("#who"))

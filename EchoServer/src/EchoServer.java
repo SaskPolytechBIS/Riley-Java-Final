@@ -6,6 +6,8 @@ import java.nio.file.Files;
 
 /**
  * EchoServer with #ftpUpload handling and #ftplist / #ftpget support.
+ *
+ * Clean version: DEBUG prints removed.
  */
 public class EchoServer extends AbstractServer {
     //Class variables *************************************************
