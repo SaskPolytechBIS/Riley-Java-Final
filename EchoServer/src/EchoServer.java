@@ -238,9 +238,15 @@ public class EchoServer extends AbstractServer {
 
         //get array of all clients
         Thread[] clientThreadList = getClientConnections();
+        if (clientThreadList == null) {
+            return result;
+        }
 
         //loop through all clients
         for (Thread t : clientThreadList) {
+            if (!(t instanceof ConnectionToClient)) {
+                continue;
+            }
             ConnectionToClient currClient = (ConnectionToClient) t;
             Object clientRoom = currClient.getInfo("room");
             if (clientRoom != null && room.equals(clientRoom)) {
@@ -265,9 +271,15 @@ public class EchoServer extends AbstractServer {
 
         //get array of all clients
         Thread[] clientThreadList = getClientConnections();
+        if (clientThreadList == null) {
+            return;
+        }
 
         //loop through all clients
         for (int i = 0; i < clientThreadList.length; i++) {
+            if (!(clientThreadList[i] instanceof ConnectionToClient)) {
+                continue;
+            }
             ConnectionToClient currClient = ((ConnectionToClient) clientThreadList[i]);
 
             Object clientRoom = currClient.getInfo("room");
@@ -289,9 +301,15 @@ public class EchoServer extends AbstractServer {
 
         //get array of all clients
         Thread[] clientThreadList = getClientConnections();
+        if (clientThreadList == null) {
+            return;
+        }
 
         //loop through all clients
         for (int i = 0; i < clientThreadList.length; i++) {
+            if (!(clientThreadList[i] instanceof ConnectionToClient)) {
+                continue;
+            }
             ConnectionToClient currClient = ((ConnectionToClient) clientThreadList[i]);
 
             Object uid = currClient.getInfo("UserId");

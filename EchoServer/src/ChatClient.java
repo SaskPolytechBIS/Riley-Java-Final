@@ -49,6 +49,12 @@ public class ChatClient extends AbstractClient {
 
     /**
      * Handles command envelopes received from server.
+     *
+     * NOTE: Added handling for:
+     *  - "ftplist"  : server returns ArrayList<String> of filenames (sent to UI as "FTPLIST:csv")
+     *  - "#ftpget"   : server returns an envelope with arg=filename and data=byte[] (writes to downloads/)
+     *
+     * All original comments and behavior are preserved.
      */
     public void handleCommandFromServer(Envelope env)
     {
@@ -75,6 +81,8 @@ public class ChatClient extends AbstractClient {
         }
 
         // ftplist response: data is ArrayList<String>
+        // We forward a simple special string to the UI that the GUI can parse:
+        // "FTPLIST:name1,name2,..."  (preserves empty list as "FTPLIST:")
         if (cmd.equals("ftplist")) {
             @SuppressWarnings("unchecked")
             ArrayList<String> files = (ArrayList<String>) env.getData();
@@ -88,6 +96,7 @@ public class ChatClient extends AbstractClient {
         }
 
         // ftpget response: arg = filename, data = byte[]
+        // When server sends #ftpget envelope this client will write the bytes to downloads/<filename>
         if (cmd.equals("#ftpget")) {
             String filename = env.getArg();
             Object dataObj = env.getData();
