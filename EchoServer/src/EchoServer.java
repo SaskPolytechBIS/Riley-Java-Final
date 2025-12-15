@@ -1,4 +1,8 @@
+
 import java.util.ArrayList;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 public class EchoServer extends AbstractServer {
     //Class variables *************************************************
@@ -34,103 +38,123 @@ public class EchoServer extends AbstractServer {
      * @param client The connection from which the message originated.
      */
     public void handleMessageFromClient(Object msg, ConnectionToClient client) {
-        if(msg instanceof Envelope)
-        {
+        if (msg instanceof Envelope) {
             Envelope env = (Envelope) msg;
             //handle command
             handleCommandFromClient(env, client);
-        }
-        else
-        {
+        } else {
             System.out.println("Message received: " + msg + " from " + client);
-            
-            
+
             //get the name of the room the sending client is in
-            String room = (String)client.getInfo("room");
-            
+            String room = (String) client.getInfo("room");
+
             //if the client has a user ID add it to their messages
-            if(client.getInfo("UserId") != null)
-            {
-                this.sendToAllClientsInRoom(client.getInfo("UserId") + ": " +msg, room);
-            }
-            else
-            {
-                this.sendToAllClientsInRoom(msg,room);
+            if (client.getInfo("UserId") != null) {
+                this.sendToAllClientsInRoom(client.getInfo("UserId") + ": " + msg, room);
+            } else {
+                this.sendToAllClientsInRoom(msg, room);
             }
         }
     }
-    
-    public void handleCommandFromClient(Envelope env, ConnectionToClient client)
-    {
+
+    public void handleCommandFromClient(Envelope env, ConnectionToClient client) {
         //command: setName
         //arg: 
         //data: String - new name for client
-        if(env.getCommand().equals("setName"))
-        {
+        if (env.getCommand().equals("setName")) {
             String userId = (String) env.getData();
             client.setInfo("UserId", userId);
         }
-        
+
         //command: join
         //arg:
         //data: String - name for room the user wants to join
-        if(env.getCommand().equals("join"))
-        {
-            String room = (String)env.getData();
+        if (env.getCommand().equals("join")) {
+            String room = (String) env.getData();
             client.setInfo("room", room);
-            if(client.getInfo("UserId") != null)
-            {
-                String UserId = (String)client.getInfo("UserId");
-                System.out.println("<"+UserId+" has joined room "+room+">");
-            }
-            else
-            {
-                System.out.println("<User has joined room "+room+">");
+            if (client.getInfo("UserId") != null) {
+                String UserId = (String) client.getInfo("UserId");
+                System.out.println("<" + UserId + " has joined room " + room + ">");
+            } else {
+                System.out.println("<User has joined room " + room + ">");
             }
         }
-        
+
         //command: pm
         //arg: target for the pm
         //data: String - text of the pm
-        if(env.getCommand().equals("pm"))
-        {
+        if (env.getCommand().equals("pm")) {
             String target = env.getArg();
-            String text = (String)env.getData();
-            
-            sendToClientByUserId(text,target);
+            String text = (String) env.getData();
+
+            sendToClientByUserId(text, target);
         }
-        
-        if(env.getCommand().equals("who"))
-        {
+
+        if (env.getCommand().equals("who")) {
             //find out what room the person who sent the command is in
-            String room = (String)client.getInfo("room");
-            
+            String room = (String) client.getInfo("room");
+
             //find all users in the same room and store in an ArrayList<String>
             ArrayList<String> clientList = getAllClientsInRoom(room);
-            
+
             //create an envelope with an Id of "who"
             //add the arraylist as the data
             Envelope returnEnv = new Envelope();
             returnEnv.setCommand("who");
             returnEnv.setData(clientList);
-            
+
             //use the sendToClient function from ConnectionToClient to send the envelope
             //back to the client who sent the command
-            try{
+            try {
                 client.sendToClient(returnEnv);
-            }
-            catch(Exception e)
-            {
+            } catch (Exception e) {
                 System.out.println("Something went wrong when trying to send who return envelope");
                 e.printStackTrace();
             }
         }
+
+        //command: saveFile
+        //arg: filename
+        //data: byte[]
+        if (env.getCommand().equals("saveFile")) {
+            String filename = env.getArg();
+            Object dataObj = env.getData();
+            if (filename == null || dataObj == null || !(dataObj instanceof byte[])) {
+                System.out.println("Invalid saveFile envelope received");
+                return;
+            }
+            byte[] fileBytes = (byte[]) dataObj;
+
+            // create server_files directory if it doesn't exist
+            File dir = new File("server_files");
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+
+            File out = new File(dir, filename);
+            try (FileOutputStream fos = new FileOutputStream(out)) {
+                fos.write(fileBytes);
+                System.out.println("Saved file " + out.getAbsolutePath() + " from " + client);
+                // notify client of success
+                try {
+                    client.sendToClient("File saved on server as: " + out.getName());
+                } catch (Exception e) {
+                    System.out.println("Failed to notify client about saved file.");
+                }
+            } catch (IOException e) {
+                System.out.println("Error saving file from client: " + e.getMessage());
+                e.printStackTrace();
+                try {
+                    client.sendToClient("Error saving file on server: " + e.getMessage());
+                } catch (Exception ex) {
+                }
+            }
+        }
     }
 
-    public ArrayList<String> getAllClientsInRoom(String room)
-    {
+    public ArrayList<String> getAllClientsInRoom(String room) {
         ArrayList<String> result = new ArrayList<String>();
-        
+
         //get array of all clients
         Thread[] clientThreadList = getClientConnections();
 
@@ -138,23 +162,22 @@ public class EchoServer extends AbstractServer {
         for (int i = 0; i < clientThreadList.length; i++) {
             //cast the client thread as a connectionToClient object
             ConnectionToClient currClient = ((ConnectionToClient) clientThreadList[i]);
-            
+
             //before we add client to list, make sure it is in the specified room
-            if(room.equals(currClient.getInfo("room")))
-            {
+            if (room.equals(currClient.getInfo("room"))) {
                 //check if the currClient has a UserId
-                if(currClient.getInfo("UserId")!= null)
-                {
+                if (currClient.getInfo("UserId") != null) {
                     //add user id to the list
-                    result.add( (String)currClient.getInfo("UserId") );
+                    result.add((String) currClient.getInfo("UserId"));
                 }
             }
         }
         return result;
     }
-    
+
     /**
      * Send message to all clients in specified room
+     *
      * @param msg - The message to send
      * @param room - The room to send to
      */
@@ -166,10 +189,9 @@ public class EchoServer extends AbstractServer {
         for (int i = 0; i < clientThreadList.length; i++) {
             //cast the client thread as a connectionToClient object
             ConnectionToClient currClient = ((ConnectionToClient) clientThreadList[i]);
-            
+
             //before we send to a client, make sure it is in the specified room
-            if(room.equals(currClient.getInfo("room")))
-            {
+            if (room.equals(currClient.getInfo("room"))) {
                 try {
                     //send message to client
                     currClient.sendToClient(msg);
@@ -178,7 +200,7 @@ public class EchoServer extends AbstractServer {
             }
         }
     }
-    
+
     public void sendToClientByUserId(Object msg, String target) {
         //get array of all clients
         Thread[] clientThreadList = getClientConnections();
@@ -187,13 +209,11 @@ public class EchoServer extends AbstractServer {
         for (int i = 0; i < clientThreadList.length; i++) {
             //cast the client thread as a connectionToClient object
             ConnectionToClient currClient = ((ConnectionToClient) clientThreadList[i]);
-            
+
             //make sure the client has a user id before trying to read it
-            if(currClient.getInfo("UserId") != null)
-            {
+            if (currClient.getInfo("UserId") != null) {
                 //before we send to a client, make sure it is in the specified room
-                if(target.equals(currClient.getInfo("UserId")))
-                {
+                if (target.equals(currClient.getInfo("UserId"))) {
                     try {
                         //send message to client
                         currClient.sendToClient(msg);
@@ -203,7 +223,7 @@ public class EchoServer extends AbstractServer {
             }
         }
     }
-    
+
     /**
      * This method overrides the one in the superclass. Called when the server
      * starts listening for connections.
@@ -230,16 +250,13 @@ public class EchoServer extends AbstractServer {
      */
     public static void main(String[] args) {
         int port = 0; //Port to listen on
-        
-        try
-        {
+
+        try {
             port = Integer.parseInt(args[0]);
-        }
-        catch(ArrayIndexOutOfBoundsException aioobe)
-        {
+        } catch (ArrayIndexOutOfBoundsException aioobe) {
             port = DEFAULT_PORT; //Set port to 5555
         }
-            
+
         EchoServer sv = new EchoServer(port);
 
         try {
@@ -256,7 +273,7 @@ public class EchoServer extends AbstractServer {
         client.setInfo("room", "commons");
 
     }
-    
+
     synchronized protected void clientException(
             ConnectionToClient client, Throwable exception) {
         System.out.println("<Client has disconnected>");

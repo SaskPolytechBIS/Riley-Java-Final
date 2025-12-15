@@ -1,160 +1,208 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 import javax.swing.*;
 import java.awt.event.*;
 import java.awt.*;
 import java.io.IOException;
+import java.io.File;
+import java.nio.file.Files;
 
 /**
- *
- * @author Instructor
+ * Client GUI laid out vertically so:
+ * - top: message area (fixed height)
+ * - middle: stacked Host/Port/UserId/Message fields
+ * - separator
+ * - bottom: 4x2 button grid
  */
 public class ClientGUI extends JFrame implements ChatIF {
 
-    /**
-     * The instance of the client that handles the communication for the GUI
-     */
+    private static final long serialVersionUID = 1L;
+
     ChatClient client;
-    
-    /**
-     * The default port to connect on.
-     */
     final public static int DEFAULT_PORT = 5555;
-    
-    /**
-     * JFrame Buttons.
-     */
-    private JButton logoffB = new JButton("Logoff");
-    private JButton loginB = new JButton("Login");
+
+    // Buttons
+    private JButton userListB = new JButton("User List");
+    private JButton pmB = new JButton("PM");
     private JButton sendB = new JButton("Send");
+    private JButton loginB = new JButton("Login");
+    private JButton browseB = new JButton("Browse");
+    private JButton saveB = new JButton("Save");
+    private JButton logoffB = new JButton("Logoff");
     private JButton quitB = new JButton("Quit");
 
-    /**
-     * JFrame Text Fields.
-     */
-    private JTextField portTxF = new JTextField("5555");
-    private JTextField hostTxF = new JTextField("127.0.0.1");
-    private JTextField userIdTxF = new JTextField("");
-    private JTextField messageTxF = new JTextField("");
+    // Fields and labels
+    private JTextField hostTxF = new JTextField("localhost", 14);
+    private JTextField portTxF = new JTextField("5555", 8);
+    private JTextField userIdTxF = new JTextField("", 14);
+    private JTextField messageTxF = new JTextField("", 14);
 
-    /**
-     * JFrame Labels.
-     */
-    private JLabel portLB = new JLabel("Port: ", JLabel.RIGHT);
-    private JLabel hostLB = new JLabel("Host: ", JLabel.RIGHT);
-    private JLabel userIdLB = new JLabel("UserId: ", JLabel.RIGHT);
-    private JLabel messageLB = new JLabel("Message: ", JLabel.RIGHT);
+    private JLabel hostLB = new JLabel("Host:", JLabel.RIGHT);
+    private JLabel portLB = new JLabel("Port:", JLabel.RIGHT);
+    private JLabel userIdLB = new JLabel("User Id:", JLabel.RIGHT);
+    private JLabel messageLB = new JLabel("Message:", JLabel.RIGHT);
 
-    /**
-     * The main text area where messages are displayed
-     */
+    // Message area
     private JTextArea messageList = new JTextArea();
+    private JScrollPane messageScroll = new JScrollPane(messageList);
 
-    public static void main(String[] args)
-    {
-        String host = "localhost";
-        int port = DEFAULT_PORT;  //The port number
-        
-        //create and display the GUI using the default values for host and port as placeholders
-        ClientGUI chat = new ClientGUI(host, port);
+    private File selectedFile = null;
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new ClientGUI("localhost", DEFAULT_PORT));
     }
-    
+
     public ClientGUI(String host, int port) {
-
-        //create the GUI Window
         super("Simple Chat GUI");
-        setSize(300, 400);
 
-        //setup the JFrame layout
-        setLayout(new BorderLayout(5, 5));
+        // Use a single vertical box layout for the content pane
+        JPanel main = new JPanel();
+        main.setLayout(new BoxLayout(main, BoxLayout.Y_AXIS));
+        main.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        getContentPane().add(main);
 
-        //Because only one item can go in each area of a JFrame layout, we create
-        //the JPanel Bottom and add our elements into that, then add that to the
-        //JFrame layout
-        JPanel bottom = new JPanel();
-        add("Center", messageList);
-        add("South", bottom);
+        // 1) Top: message area with a fixed maximum height so it doesn't expand
+        messageList.setEditable(false);
+        messageList.setLineWrap(true);
+        messageList.setWrapStyleWord(true);
+        messageScroll.setPreferredSize(new Dimension(380, 300));
+        messageScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 300)); // prevents vertical expansion
+        main.add(messageScroll);
+        main.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        //Set the Layout of the buttons to be a grid
-        bottom.setLayout(new GridLayout(6, 2, 5, 5));
-        bottom.add(hostLB);             bottom.add(hostTxF);
-        
-        bottom.add(portLB);             bottom.add(portTxF);
-        
-        bottom.add(userIdLB);           bottom.add(userIdTxF);
-        
-        bottom.add(messageLB);          bottom.add(messageTxF);
-        
-        bottom.add(loginB);             bottom.add(sendB);
-       
-        bottom.add(logoffB);            bottom.add(quitB);
-        
+        // 2) Middle: stacked labels/fields panel (4 rows x 2 columns)
+        JPanel fieldsPanel = new JPanel(new GridBagLayout());
+        fieldsPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 140));
+        GridBagConstraints c = new GridBagConstraints();
+        c.insets = new Insets(4, 6, 4, 6);
+        c.fill = GridBagConstraints.HORIZONTAL;
 
-        loginB.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                String userId = userIdTxF.getText();
-                
-                if(userId.equals(""))
-                {
-                   display("You must enter a User Id to log in");
-                }
-                else
-                {
-                    display("Logging in as "+ userIdTxF.getText());
-                    send("#login");
-                    send("#setName "+userIdTxF.getText());
-                }
-                
+        c.gridx = 0; c.gridy = 0; c.weightx = 0.0;
+        fieldsPanel.add(hostLB, c);
+        c.gridx = 1; c.gridy = 0; c.weightx = 1.0;
+        fieldsPanel.add(hostTxF, c);
+
+        c.gridx = 0; c.gridy = 1; c.weightx = 0.0;
+        fieldsPanel.add(portLB, c);
+        c.gridx = 1; c.gridy = 1; c.weightx = 1.0;
+        fieldsPanel.add(portTxF, c);
+
+        c.gridx = 0; c.gridy = 2; c.weightx = 0.0;
+        fieldsPanel.add(userIdLB, c);
+        c.gridx = 1; c.gridy = 2; c.weightx = 1.0;
+        fieldsPanel.add(userIdTxF, c);
+
+        c.gridx = 0; c.gridy = 3; c.weightx = 0.0;
+        fieldsPanel.add(messageLB, c);
+        c.gridx = 1; c.gridy = 3; c.weightx = 1.0;
+        fieldsPanel.add(messageTxF, c);
+
+        main.add(fieldsPanel);
+        main.add(Box.createRigidArea(new Dimension(0, 6)));
+
+        // 3) Separator line
+        JSeparator sep = new JSeparator(SwingConstants.HORIZONTAL);
+        sep.setMaximumSize(new Dimension(Integer.MAX_VALUE, 4));
+        main.add(sep);
+        main.add(Box.createRigidArea(new Dimension(0, 8)));
+
+        // 4) Bottom: buttons panel - 4 rows x 2 columns
+        JPanel buttonPanel = new JPanel(new GridLayout(4, 2, 8, 8));
+        buttonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
+        // order chosen to match screenshot feel
+        buttonPanel.add(userListB);  buttonPanel.add(sendB);
+        buttonPanel.add(pmB);        buttonPanel.add(saveB);
+        buttonPanel.add(loginB);     buttonPanel.add(logoffB);
+        buttonPanel.add(browseB);    buttonPanel.add(quitB);
+
+        main.add(buttonPanel);
+
+        // --- Actions ---
+        loginB.addActionListener(e -> {
+            String userId = userIdTxF.getText().trim();
+            if (userId.equals("")) {
+                display("You must enter a User Id to log in");
+            } else {
+                display("Logging in as " + userId);
+                send("#login");
+                send("#setName " + userId);
             }
         });
-        
-        sendB.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                send(messageTxF.getText());
-            }
+
+        sendB.addActionListener(e -> send(messageTxF.getText()));
+
+        logoffB.addActionListener(e -> {
+            display("Logging off server");
+            send("#logoff");
         });
-        
-        logoffB.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                display("Logging off server");
-                send("#logoff");
-            }
-        });
-        
-        quitB.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                send("#quit");
+
+        quitB.addActionListener(e -> send("#quit"));
+
+        browseB.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            int returnVal = chooser.showOpenDialog(ClientGUI.this);
+            if (returnVal == JFileChooser.APPROVE_OPTION) {
+                selectedFile = chooser.getSelectedFile();
+                display("Selected file: " + selectedFile.getName());
+            } else {
+                display("File selection cancelled");
             }
         });
 
-        //create ChatClient to handle messages
+        saveB.addActionListener(e -> {
+            if (selectedFile == null) {
+                display("No file selected. Click Browse first.");
+                return;
+            }
+            if (client == null || !client.isConnected()) {
+                display("You must login/connect before sending a file.");
+                return;
+            }
+            try {
+                byte[] fileBytes = Files.readAllBytes(selectedFile.toPath());
+                Envelope env = new Envelope();
+                env.setCommand("saveFile");
+                env.setArg(selectedFile.getName());
+                env.setData(fileBytes);
+                client.sendToServer(env);
+                display("Sent file to server: " + selectedFile.getName());
+            } catch (IOException ex) {
+                display("Error reading or sending file: " + ex.getMessage());
+                ex.printStackTrace();
+            }
+        });
+
+        userListB.addActionListener(e -> send("#who"));
+
+        pmB.addActionListener(e -> {
+            String input = JOptionPane.showInputDialog(ClientGUI.this,
+                    "Enter 'target message' (e.g. alice Hi):", "Private Message", JOptionPane.PLAIN_MESSAGE);
+            if (input != null && !input.trim().isEmpty()) {
+                send("#pm " + input.trim());
+            }
+        });
+
+        // create ChatClient to handle messages (existing code)
         try {
             client = new ChatClient(host, port, this);
         } catch (IOException exception) {
-            System.out.println("Error: Can't setup connection!!!!"
-                    + " Terminating client.");
+            System.out.println("Error: Can't setup connection!!!! Terminating client.");
             System.exit(1);
         }
-        
-        //Display the window to the user. This should be the last step
+
+        // Final window settings
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setPreferredSize(new Dimension(420, 720)); // reasonably large
+        pack();
+        setLocationRelativeTo(null);
         setVisible(true);
     }
-    
-    /**
-     * Send a text message to the ChatClient to process 
-     */
-    public void send(String message)
-    {
+
+    // send a text message command to ChatClient's handler
+    public void send(String message) {
         client.handleMessageFromClientUI(message);
     }
-    
-    /**
-     * Displays information to the user using the messageList JTextArea
-     */
+
+    // display text in the message area (most recent at top)
     public void display(String message) {
-        //add the "\n" so the messages dont stack on a single line
-        messageList.insert(message+"\n", 0);
+        messageList.insert(message + "\n", 0);
     }
 }
