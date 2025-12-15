@@ -11,8 +11,8 @@ import java.io.Serializable;
  */
 public class Envelope implements Serializable{
     private String command; //the name of the command
-    private String arg; //an argument needed to complete the command (optional)
-    private Object data; //the data required for the command (optional)
+    private String arg; //an argument needed to complete the command
+    private Object data; //the data required for the command
 
     public Envelope() {
     }

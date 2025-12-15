@@ -5,16 +5,6 @@ import java.io.IOException;
 import java.io.File;
 import java.nio.file.Files;
 
-/**
- * Client GUI with FTP UI elements enabled:
- * - File List combo (populated from server FTPLIST response)
- * - "File List" button that requests the server file list (#ftplist)
- * - "Download" button that requests a file from the server (#ftpget)
- *
- * All previous comments and upload behavior preserved.
- *
- * Layout change: buttons are arranged in 2 rows × 5 columns at the bottom.
- */
 public class ClientGUI extends JFrame implements ChatIF {
 
     private static final long serialVersionUID = 1L;
@@ -62,21 +52,18 @@ public class ClientGUI extends JFrame implements ChatIF {
     public ClientGUI(String host, int port) {
         super("Simple Chat GUI");
 
-        // --- Simple visual defaults (small & safe) ---
         UIManager.put("defaultFont", new Font("SansSerif", Font.PLAIN, 13));
         Color panelBg = new Color(0xF4F6F8);    // light neutral background
         Color messageBg = Color.WHITE;
         Color buttonBg = new Color(0xEAF0F7);   // soft blue
         Color buttonFg = new Color(0x0B57A5);   // deep blue text
 
-        // Use a single vertical box layout for the content pane
         JPanel main = new JPanel();
         main.setLayout(new BoxLayout(main, BoxLayout.Y_AXIS));
         main.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         main.setBackground(panelBg);
         getContentPane().add(main);
 
-        // 1) Top: message area with a fixed maximum height so it doesn't expand
         messageList.setEditable(false);
         messageList.setLineWrap(true);
         messageList.setWrapStyleWord(true);
@@ -219,7 +206,7 @@ public class ClientGUI extends JFrame implements ChatIF {
             }
         });
 
-        // Upload (send #ftpUpload)
+        // Upload
         saveB.addActionListener(e -> {
             if (selectedFile == null) {
                 display("No file selected. Click Browse first.");
@@ -243,7 +230,7 @@ public class ClientGUI extends JFrame implements ChatIF {
             }
         });
 
-        // ftpListB listener (request server file list) - enabled
+        // ftpListB listener
         ftpListB.addActionListener(e -> {
             if (client == null || !client.isConnected()) {
                 display("You must login/connect before requesting file list.");
@@ -259,7 +246,7 @@ public class ClientGUI extends JFrame implements ChatIF {
             }
         });
 
-        // downloadB listener (request server to send file) - enabled
+        // downloadB listener
         downloadB.addActionListener(e -> {
             if (client == null || !client.isConnected()) {
                 display("You must login/connect before downloading.");
@@ -283,7 +270,7 @@ public class ClientGUI extends JFrame implements ChatIF {
 
         userListB.addActionListener(e -> send("#who"));
 
-        // PM button: show a small two-field dialog (Target, Message), validate, then send
+        // PM button
         pmB.addActionListener(e -> {
             JPanel panel = new JPanel(new GridBagLayout());
             GridBagConstraints gbc = new GridBagConstraints();

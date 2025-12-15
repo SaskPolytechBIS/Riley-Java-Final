@@ -311,7 +311,7 @@ public class ChatClient extends AbstractClient {
             // Validate format: must contain target and message separated by a space
             int firstSpace = targetAndText.indexOf(' ');
             if (firstSpace <= 0) {
-                // Either no space (no message) or empty target — show usage instead of crashing
+                // Either no space or empty target — show usage instead of crashing
                 clientUI.display("PM format error. Correct usage: #pm <target> <message>");
                 return;
             }

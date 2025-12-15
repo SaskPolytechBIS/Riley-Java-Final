@@ -4,12 +4,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 
-/**
- * EchoServer with #ftpUpload handling and #ftplist / #ftpget support.
- *
- * Updated: when receiving a "pm" envelope, wrap it with sender info and forward
- * as an Envelope so clients can display who sent the private message.
- */
 public class EchoServer extends AbstractServer {
     //Class variables *************************************************
 
@@ -40,7 +34,7 @@ public class EchoServer extends AbstractServer {
         } else {
             System.out.println("Message received: " + msg + " from " + client);
 
-            // get the name of the room the sending client is in; ensure a default
+            // get the name of the room the sending client is in
             String room = (String) client.getInfo("room");
             if (room == null) {
                 room = "commons";
@@ -144,7 +138,7 @@ public class EchoServer extends AbstractServer {
 
             byte[] fileBytes = (byte[]) dataObj;
 
-            // Sanitize filename (strip any path components)
+            // Sanitize filename
             String safeName = new File(filename).getName();
 
             // Ensure uploads directory exists
@@ -180,7 +174,7 @@ public class EchoServer extends AbstractServer {
             return;
         }
 
-        // NEW: #ftplist - return list of filenames in uploads/
+        // #ftplist - return list of filenames in uploads/
         if (env.getCommand().equals("#ftplist")) {
             File dir = new File("uploads");
             ArrayList<String> list = new ArrayList<>();
@@ -206,7 +200,7 @@ public class EchoServer extends AbstractServer {
             return;
         }
 
-        // NEW: #ftpget - send the requested file (if present) back to requesting client
+        // #ftpget - send the requested file back to requesting client
         if (env.getCommand().equals("#ftpget")) {
             String filename = env.getArg();
             if (filename == null) {
