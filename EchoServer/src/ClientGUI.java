@@ -1,3 +1,4 @@
+
 import javax.swing.*;
 import java.awt.event.*;
 import java.awt.*;
@@ -6,11 +7,9 @@ import java.io.File;
 import java.nio.file.Files;
 
 /**
- * Client GUI laid out vertically so:
- * - top: message area (fixed height)
- * - middle: stacked Host/Port/UserId/Message fields
- * - separator
- * - bottom: 4x2 button grid
+ * Client GUI laid out vertically so: - top: message area (fixed height) -
+ * middle: stacked Host/Port/UserId/Message fields - separator - bottom: 4x2
+ * button grid
  */
 public class ClientGUI extends JFrame implements ChatIF {
 
@@ -75,24 +74,40 @@ public class ClientGUI extends JFrame implements ChatIF {
         c.insets = new Insets(4, 6, 4, 6);
         c.fill = GridBagConstraints.HORIZONTAL;
 
-        c.gridx = 0; c.gridy = 0; c.weightx = 0.0;
+        c.gridx = 0;
+        c.gridy = 0;
+        c.weightx = 0.0;
         fieldsPanel.add(hostLB, c);
-        c.gridx = 1; c.gridy = 0; c.weightx = 1.0;
+        c.gridx = 1;
+        c.gridy = 0;
+        c.weightx = 1.0;
         fieldsPanel.add(hostTxF, c);
 
-        c.gridx = 0; c.gridy = 1; c.weightx = 0.0;
+        c.gridx = 0;
+        c.gridy = 1;
+        c.weightx = 0.0;
         fieldsPanel.add(portLB, c);
-        c.gridx = 1; c.gridy = 1; c.weightx = 1.0;
+        c.gridx = 1;
+        c.gridy = 1;
+        c.weightx = 1.0;
         fieldsPanel.add(portTxF, c);
 
-        c.gridx = 0; c.gridy = 2; c.weightx = 0.0;
+        c.gridx = 0;
+        c.gridy = 2;
+        c.weightx = 0.0;
         fieldsPanel.add(userIdLB, c);
-        c.gridx = 1; c.gridy = 2; c.weightx = 1.0;
+        c.gridx = 1;
+        c.gridy = 2;
+        c.weightx = 1.0;
         fieldsPanel.add(userIdTxF, c);
 
-        c.gridx = 0; c.gridy = 3; c.weightx = 0.0;
+        c.gridx = 0;
+        c.gridy = 3;
+        c.weightx = 0.0;
         fieldsPanel.add(messageLB, c);
-        c.gridx = 1; c.gridy = 3; c.weightx = 1.0;
+        c.gridx = 1;
+        c.gridy = 3;
+        c.weightx = 1.0;
         fieldsPanel.add(messageTxF, c);
 
         main.add(fieldsPanel);
@@ -108,10 +123,14 @@ public class ClientGUI extends JFrame implements ChatIF {
         JPanel buttonPanel = new JPanel(new GridLayout(4, 2, 8, 8));
         buttonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
         // order chosen to match screenshot feel
-        buttonPanel.add(userListB);  buttonPanel.add(sendB);
-        buttonPanel.add(pmB);        buttonPanel.add(saveB);
-        buttonPanel.add(loginB);     buttonPanel.add(logoffB);
-        buttonPanel.add(browseB);    buttonPanel.add(quitB);
+        buttonPanel.add(userListB);
+        buttonPanel.add(sendB);
+        buttonPanel.add(pmB);
+        buttonPanel.add(saveB);
+        buttonPanel.add(loginB);
+        buttonPanel.add(logoffB);
+        buttonPanel.add(browseB);
+        buttonPanel.add(quitB);
 
         main.add(buttonPanel);
 
@@ -159,9 +178,9 @@ public class ClientGUI extends JFrame implements ChatIF {
             try {
                 byte[] fileBytes = Files.readAllBytes(selectedFile.toPath());
                 Envelope env = new Envelope();
-                env.setCommand("saveFile");
-                env.setArg(selectedFile.getName());
-                env.setData(fileBytes);
+                env.setCommand("#ftpUpload");            // <-- required command
+                env.setArg(selectedFile.getName());      // filename only (no path)
+                env.setData(fileBytes);                  // file contents as byte[]
                 client.sendToServer(env);
                 display("Sent file to server: " + selectedFile.getName());
             } catch (IOException ex) {
