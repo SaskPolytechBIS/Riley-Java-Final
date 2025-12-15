@@ -7,7 +7,8 @@ import java.nio.file.Files;
 /**
  * EchoServer with #ftpUpload handling and #ftplist / #ftpget support.
  *
- * Clean version: DEBUG prints removed.
+ * Updated: when receiving a "pm" envelope, wrap it with sender info and forward
+ * as an Envelope so clients can display who sent the private message.
  */
 public class EchoServer extends AbstractServer {
     //Class variables *************************************************
@@ -90,7 +91,19 @@ public class EchoServer extends AbstractServer {
         if (env.getCommand().equals("pm")) {
             String target = env.getArg();
             String text = (String) env.getData();
-            sendToClientByUserId(text, target);
+
+            // Find sender name (if set) and include it in the forwarded envelope
+            Object uidObj = client.getInfo("UserId");
+            String sender = (uidObj != null) ? (String) uidObj : "(unknown)";
+
+            // Create an envelope for the recipient with sender in arg and text in data
+            Envelope forward = new Envelope();
+            forward.setCommand("pm");
+            forward.setArg(sender);
+            forward.setData(text);
+
+            // Forward the envelope to the target user by userId
+            sendToClientByUserId(forward, target);
             return;
         }
 

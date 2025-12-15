@@ -5,7 +5,8 @@ import java.util.ArrayList;
  * This class overrides some of the methods defined in the abstract superclass
  * in order to give more functionality to the client.
  *
- * Robust PM parsing is preserved; DEBUG messages removed.
+ * Robust PM parsing is preserved; incoming "pm" envelopes are displayed as
+ * "PM from <sender>: <message>" in the GUI.
  */
 public class ChatClient extends AbstractClient {
     //Instance variables **********************************************
@@ -55,6 +56,7 @@ public class ChatClient extends AbstractClient {
      * NOTE: Added handling for:
      *  - "ftplist"  : server returns ArrayList<String> of filenames (sent to UI as "FTPLIST:csv")
      *  - "#ftpget"   : server returns an envelope with arg=filename and data=byte[] (writes to downloads/)
+     *  - "pm"        : server forwards a private message as an Envelope with arg=sender and data=text
      *
      * All original comments and behavior are preserved.
      */
@@ -83,6 +85,16 @@ public class ChatClient extends AbstractClient {
             } else {
                 clientUI.display("(no clients found)");
             }
+            return;
+        }
+
+        // pm envelope from server: arg = sender, data = text
+        if (cmd.equals("pm")) {
+            String sender = env.getArg();
+            Object dataObj = env.getData();
+            String text = (dataObj instanceof String) ? (String) dataObj : String.valueOf(dataObj);
+            if (sender == null) sender = "(unknown)";
+            clientUI.display("PM from " + sender + ": " + text);
             return;
         }
 

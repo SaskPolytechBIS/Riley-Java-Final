@@ -6,22 +6,12 @@ import java.io.File;
 import java.nio.file.Files;
 
 /**
- * Cleaned-up Client GUI with FTP UI elements commented out (instead of removed)
+ * Client GUI with FTP UI elements enabled:
+ * - File List combo (populated from server FTPLIST response)
+ * - "File List" button that requests the server file list (#ftplist)
+ * - "Download" button that requests a file from the server (#ftpget)
  *
- * Notes:
- * - The File List combo, File List button and Download button are commented out
- * - Each commented block is labeled and includes a brief reason and re-enable note
- * - Upload (Save) logic remains active (sends "#ftpUpload") because server still expects it
- *
- * Upgrades in this version:
- * - Kept all original commented-out FTP code as requested (not removed)
- * - Improved layout: fields on the left, vertically stacked buttons on the right
- * - Simple visual tweaks: default font, spacing and button styling
- *
- * The PM button uses a two-field dialog (target + message) and validates input
- * before sending to avoid malformed PMs.
- *
- * Do NOT remove the commented blocks below; they are intentionally preserved for easy re-enable.
+ * All previous comments and upload behavior preserved.
  */
 public class ClientGUI extends JFrame implements ChatIF {
 
@@ -32,13 +22,8 @@ public class ClientGUI extends JFrame implements ChatIF {
 
     // Buttons
     private JButton userListB = new JButton("User List");
-    // COMMENTED OUT - FTP File List button
-    // Reason: removing optional FTP UI to simplify GUI for current build
-    // private JButton ftpListB = new JButton("File List");
-
-    // COMMENTED OUT - FTP Download button
-    // Reason: removing optional FTP UI to simplify GUI for current build
-    // private JButton downloadB = new JButton("Download");
+    private JButton ftpListB = new JButton("File List");   // enabled
+    private JButton downloadB = new JButton("Download");   // enabled
 
     private JButton pmB = new JButton("PM");
     private JButton sendB = new JButton("Send");
@@ -63,10 +48,9 @@ public class ClientGUI extends JFrame implements ChatIF {
     private JTextArea messageList = new JTextArea();
     private JScrollPane messageScroll = new JScrollPane(messageList);
 
-    // COMMENTED OUT - combo for remote files (used by FTP File List / Download)
-    // Reason: not needed for current simplified GUI; left as comment for easy restore
-    // add ftpListB/downloadB to the button panel and uncomment the listeners
-    // private JComboBox<String> fileListCombo = new JComboBox<>();
+    // File list combo for remote files (used by FTP File List / Download)
+    // This was previously commented out; now enabled and wired to server FTPLIST responses.
+    private JComboBox<String> fileListCombo = new JComboBox<>();
 
     private File selectedFile = null;
 
@@ -78,7 +62,6 @@ public class ClientGUI extends JFrame implements ChatIF {
         super("Simple Chat GUI");
 
         // --- Simple visual defaults (small & safe) ---
-        // This is intentionally minimal; change font name/size to taste.
         UIManager.put("defaultFont", new Font("SansSerif", Font.PLAIN, 13));
         Color panelBg = new Color(0xF4F6F8);    // light neutral background
         Color messageBg = Color.WHITE;
@@ -98,21 +81,20 @@ public class ClientGUI extends JFrame implements ChatIF {
         messageList.setWrapStyleWord(true);
         messageList.setBackground(messageBg);
         messageList.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        messageScroll.setPreferredSize(new Dimension(380, 300));
-        messageScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 300)); // prevents vertical expansion
+        messageScroll.setPreferredSize(new Dimension(520, 320));
+        messageScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 320)); // prevents vertical expansion
         main.add(messageScroll);
         main.add(Box.createRigidArea(new Dimension(0, 8)));
 
         // -------------------------------------------------------------
         // New layout: bottom area composed of two columns:
-        // - leftColumn: stacked fields (Host, Port, UserId, Message)
-        // - rightColumn: vertically stacked buttons
-        // This preserves your earlier fields and keeps buttons tidy on the right.
+        // - leftColumn: stacked fields (Host, Port, UserId, Message) + fileListCombo
+        // - rightColumn: vertically stacked buttons (includes FTP buttons)
         // -------------------------------------------------------------
 
         // Left column (fields) using GridBagLayout (keeps existing spacing)
         JPanel leftColumn = new JPanel(new GridBagLayout());
-        leftColumn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
+        leftColumn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
         leftColumn.setBackground(panelBg);
         GridBagConstraints c = new GridBagConstraints();
         c.insets = new Insets(6, 6, 6, 6);
@@ -154,9 +136,7 @@ public class ClientGUI extends JFrame implements ChatIF {
         c.weightx = 1.0;
         leftColumn.add(messageTxF, c);
 
-        // COMMENTED OUT - Files combo row (FTP)
-        // Reason: removed optional FTP list UI to simplify GUI
-        /*
+        // Files combo row (FTP) - enabled
         c.gridx = 0;
         c.gridy = 4;
         c.weightx = 0.0;
@@ -164,8 +144,8 @@ public class ClientGUI extends JFrame implements ChatIF {
         c.gridx = 1;
         c.gridy = 4;
         c.weightx = 1.0;
+        fileListCombo.setPrototypeDisplayValue("selected-file-name.txt"); // makes combo a reasonable width
         leftColumn.add(fileListCombo, c);
-        */
 
         // Right column: vertically stacked buttons with consistent styling
         JPanel rightColumn = new JPanel();
@@ -175,14 +155,16 @@ public class ClientGUI extends JFrame implements ChatIF {
         rightColumn.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
 
         Font btnFont = new Font("SansSerif", Font.BOLD, 13);
-        // Buttons to include; FTP buttons remain commented out above
-        JButton[] btns = new JButton[] { userListB, pmB, sendB, saveB, loginB, logoffB, browseB, quitB };
+        // Order: User List, PM, Send, File List, Download, Save, Login, Logoff, Browse, Quit
+        JButton[] btns = new JButton[] {
+                userListB, pmB, sendB, ftpListB, downloadB, saveB, loginB, logoffB, browseB, quitB
+        };
         for (JButton b : btns) {
             b.setBackground(buttonBg);
             b.setForeground(buttonFg);
             b.setFocusPainted(false);
             b.setFont(btnFont);
-            b.setMaximumSize(new Dimension(180, 36));
+            b.setMaximumSize(new Dimension(200, 36));
             b.setAlignmentX(Component.CENTER_ALIGNMENT);
             b.setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createLineBorder(new Color(0xC8D7E6)),
@@ -214,7 +196,11 @@ public class ClientGUI extends JFrame implements ChatIF {
             }
         });
 
-        sendB.addActionListener(e -> send(messageTxF.getText()));
+        sendB.addActionListener(e -> {
+            send(messageTxF.getText());
+            // optional: clear the input after sending
+            messageTxF.setText("");
+        });
 
         logoffB.addActionListener(e -> {
             display("Logging off server");
@@ -258,9 +244,7 @@ public class ClientGUI extends JFrame implements ChatIF {
             }
         });
 
-        // COMMENTED OUT - ftpListB listener (request server file list)
-        // Reason: optional FTP UI removed for simplicity
-        /*
+        // ftpListB listener (request server file list) - enabled
         ftpListB.addActionListener(e -> {
             if (client == null || !client.isConnected()) {
                 display("You must login/connect before requesting file list.");
@@ -275,11 +259,8 @@ public class ClientGUI extends JFrame implements ChatIF {
                 display("Error requesting file list: " + ex.getMessage());
             }
         });
-        */
 
-        // COMMENTED OUT - downloadB listener (request server to send file)
-        // Reason: optional FTP UI removed for simplicity
-        /*
+        // downloadB listener (request server to send file) - enabled
         downloadB.addActionListener(e -> {
             if (client == null || !client.isConnected()) {
                 display("You must login/connect before downloading.");
@@ -300,13 +281,11 @@ public class ClientGUI extends JFrame implements ChatIF {
                 display("Error requesting download: " + ex.getMessage());
             }
         });
-        */
 
         userListB.addActionListener(e -> send("#who"));
 
         // PM button: show a small two-field dialog (Target, Message), validate, then send
         pmB.addActionListener(e -> {
-            // Build a panel with two labels/fields for a clearer input UI
             JPanel panel = new JPanel(new GridBagLayout());
             GridBagConstraints gbc = new GridBagConstraints();
             gbc.insets = new Insets(4, 4, 4, 4);
@@ -350,14 +329,13 @@ public class ClientGUI extends JFrame implements ChatIF {
                     return;
                 }
 
-                // Send using the same command format the client expects
                 send("#pm " + target + " " + text);
             } else {
                 display("PM cancelled");
             }
         });
 
-        pmB.setEnabled(true); // make sure enabled
+        pmB.setEnabled(true); // ensure enabled
 
         // create ChatClient to handle messages
         try {
@@ -369,7 +347,7 @@ public class ClientGUI extends JFrame implements ChatIF {
 
         // Final window settings
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setPreferredSize(new Dimension(720, 600)); // reasonably large for two-column layout
+        setPreferredSize(new Dimension(840, 640)); // wide enough for combo + buttons
         pack();
         setLocationRelativeTo(null);
         setVisible(true);
@@ -381,14 +359,11 @@ public class ClientGUI extends JFrame implements ChatIF {
     }
 
     // display text in the message area (most recent at top)
-    // NOTE: previously this method handled FTPLIST:... special messages to populate the file combo
-    // That logic has been commented out to remove FTP UI behavior while preserving the code for easy restore
+    // If FTPLIST response arrives it will populate the fileListCombo.
     public void display(String message) {
         if (message == null) return;
 
-        // COMMENTED OUT - FTPLIST parsing
-        // Reason: removed FTP UI from GUI
-        /*
+        // FTPLIST parsing: format is "FTPLIST:name1,name2,..." (as produced by ChatClient)
         if (message.startsWith("FTPLIST:")) {
             String listString = message.substring("FTPLIST:".length());
             String[] items = listString.isEmpty() ? new String[0] : listString.split(",", -1);
@@ -398,12 +373,16 @@ public class ClientGUI extends JFrame implements ChatIF {
                     if (!s.isEmpty()) model.addElement(s);
                 }
                 fileListCombo.setModel(model);
-                if (model.getSize() > 0) fileListCombo.setSelectedIndex(0);
+                if (model.getSize() > 0) {
+                    fileListCombo.setSelectedIndex(0);
+                    downloadB.setEnabled(true);
+                } else {
+                    downloadB.setEnabled(false);
+                }
                 messageList.insert("File list updated (" + model.getSize() + " files)\n", 0);
             });
             return;
         }
-        */
 
         messageList.insert(message + "\n", 0);
     }
