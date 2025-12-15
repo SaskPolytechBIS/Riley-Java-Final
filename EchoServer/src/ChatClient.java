@@ -1,4 +1,3 @@
-
 import java.io.*;
 import java.util.ArrayList;
 
@@ -47,27 +46,79 @@ public class ChatClient extends AbstractClient {
             clientUI.display(msg.toString());
         }
     }
-    
+
+    /**
+     * Handles command envelopes received from server.
+     */
     public void handleCommandFromServer(Envelope env)
     {
-        //command: who
-        //arg:
-        //data: ArrayList<String> - list of all clients in the room
-        if(env.getCommand().equals("who"))
+        if (env == null || env.getCommand() == null) {
+            return;
+        }
+
+        String cmd = env.getCommand();
+
+        // 'who' response (existing)
+        if(cmd.equals("who"))
         {
             ArrayList<String> clients = (ArrayList<String>)env.getData();
-            
+
             System.out.println("--- Printing out all clients on The List ---");
-            
+
             //loop through the array list
             for(int i = 0; i < clients.size(); i++)
             {
                 //for an array list .get(i) works like [i] for an array
                 System.out.println(clients.get(i));
             }
+            return;
         }
+
+        // ftplist response: data is ArrayList<String>
+        if (cmd.equals("ftplist")) {
+            @SuppressWarnings("unchecked")
+            ArrayList<String> files = (ArrayList<String>) env.getData();
+            String joined = "";
+            if (files != null && !files.isEmpty()) {
+                joined = String.join(",", files);
+            }
+            // GUI will parse messages starting with "FTPLIST:"
+            clientUI.display("FTPLIST:" + joined);
+            return;
+        }
+
+        // ftpget response: arg = filename, data = byte[]
+        if (cmd.equals("#ftpget")) {
+            String filename = env.getArg();
+            Object dataObj = env.getData();
+            if (filename == null || dataObj == null || !(dataObj instanceof byte[])) {
+                clientUI.display("Error: invalid ftpget response from server.");
+                return;
+            }
+            byte[] bytes = (byte[]) dataObj;
+
+            // write to downloads directory
+            try {
+                File dir = new File("downloads");
+                if (!dir.exists()) {
+                    dir.mkdirs();
+                }
+                File out = new File(dir, filename);
+                try (FileOutputStream fos = new FileOutputStream(out)) {
+                    fos.write(bytes);
+                }
+                clientUI.display("Downloaded file to downloads/" + filename);
+            } catch (IOException e) {
+                clientUI.display("Error saving downloaded file: " + e.getMessage());
+                e.printStackTrace();
+            }
+            return;
+        }
+
+        // other envelopes - keep previous behavior for known commands handled elsewhere
+        // you can add more handling here if server sends other Envelope commands
     }
-    
+
     /**
      * This method handles all data coming from the UI
      *

@@ -1,15 +1,17 @@
-
 import javax.swing.*;
 import java.awt.event.*;
 import java.awt.*;
 import java.io.IOException;
 import java.io.File;
 import java.nio.file.Files;
+import java.util.Arrays;
 
 /**
- * Client GUI laid out vertically so: - top: message area (fixed height) -
- * middle: stacked Host/Port/UserId/Message fields - separator - bottom: 4x2
- * button grid
+ * Client GUI laid out vertically so:
+ * - top: message area (fixed height)
+ * - middle: stacked Host/Port/UserId/Message fields (plus Files combo)
+ * - separator
+ * - bottom: 5x2 button grid (includes File List and Download)
  */
 public class ClientGUI extends JFrame implements ChatIF {
 
@@ -20,6 +22,8 @@ public class ClientGUI extends JFrame implements ChatIF {
 
     // Buttons
     private JButton userListB = new JButton("User List");
+    private JButton ftpListB = new JButton("File List");
+    private JButton downloadB = new JButton("Download");
     private JButton pmB = new JButton("PM");
     private JButton sendB = new JButton("Send");
     private JButton loginB = new JButton("Login");
@@ -42,6 +46,9 @@ public class ClientGUI extends JFrame implements ChatIF {
     // Message area
     private JTextArea messageList = new JTextArea();
     private JScrollPane messageScroll = new JScrollPane(messageList);
+
+    // FTP file list combo
+    private JComboBox<String> fileListCombo = new JComboBox<>();
 
     private File selectedFile = null;
 
@@ -69,7 +76,7 @@ public class ClientGUI extends JFrame implements ChatIF {
 
         // 2) Middle: stacked labels/fields panel (4 rows x 2 columns)
         JPanel fieldsPanel = new JPanel(new GridBagLayout());
-        fieldsPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 140));
+        fieldsPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 180));
         GridBagConstraints c = new GridBagConstraints();
         c.insets = new Insets(4, 6, 4, 6);
         c.fill = GridBagConstraints.HORIZONTAL;
@@ -110,6 +117,16 @@ public class ClientGUI extends JFrame implements ChatIF {
         c.weightx = 1.0;
         fieldsPanel.add(messageTxF, c);
 
+        // Files combo row
+        c.gridx = 0;
+        c.gridy = 4;
+        c.weightx = 0.0;
+        fieldsPanel.add(new JLabel("Files:", JLabel.RIGHT), c);
+        c.gridx = 1;
+        c.gridy = 4;
+        c.weightx = 1.0;
+        fieldsPanel.add(fileListCombo, c);
+
         main.add(fieldsPanel);
         main.add(Box.createRigidArea(new Dimension(0, 6)));
 
@@ -119,18 +136,15 @@ public class ClientGUI extends JFrame implements ChatIF {
         main.add(sep);
         main.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        // 4) Bottom: buttons panel - 4 rows x 2 columns
-        JPanel buttonPanel = new JPanel(new GridLayout(4, 2, 8, 8));
-        buttonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
-        // order chosen to match screenshot feel
-        buttonPanel.add(userListB);
-        buttonPanel.add(sendB);
-        buttonPanel.add(pmB);
-        buttonPanel.add(saveB);
-        buttonPanel.add(loginB);
-        buttonPanel.add(logoffB);
-        buttonPanel.add(browseB);
-        buttonPanel.add(quitB);
+        // 4) Bottom: buttons panel - 5 rows x 2 columns
+        JPanel buttonPanel = new JPanel(new GridLayout(5, 2, 8, 8));
+        buttonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 320));
+        // order chosen to match screenshot feel and include File List / Download
+        buttonPanel.add(userListB);  buttonPanel.add(sendB);
+        buttonPanel.add(ftpListB);   buttonPanel.add(downloadB);
+        buttonPanel.add(pmB);        buttonPanel.add(saveB);
+        buttonPanel.add(loginB);     buttonPanel.add(logoffB);
+        buttonPanel.add(browseB);    buttonPanel.add(quitB);
 
         main.add(buttonPanel);
 
@@ -189,6 +203,44 @@ public class ClientGUI extends JFrame implements ChatIF {
             }
         });
 
+        // File List button - request server list via Envelope "#ftplist"
+        ftpListB.addActionListener(e -> {
+            if (client == null || !client.isConnected()) {
+                display("You must login/connect before requesting file list.");
+                return;
+            }
+            try {
+                Envelope env = new Envelope();
+                env.setCommand("#ftplist");
+                client.sendToServer(env);
+                display("Requested file list from server...");
+            } catch (IOException ex) {
+                display("Error requesting file list: " + ex.getMessage());
+            }
+        });
+
+        // Download button - request server to send file using "#ftpget" (arg = filename)
+        downloadB.addActionListener(e -> {
+            if (client == null || !client.isConnected()) {
+                display("You must login/connect before downloading.");
+                return;
+            }
+            String filename = (String) fileListCombo.getSelectedItem();
+            if (filename == null || filename.isEmpty()) {
+                display("No file selected in the list.");
+                return;
+            }
+            try {
+                Envelope env = new Envelope();
+                env.setCommand("#ftpget");
+                env.setArg(filename);
+                client.sendToServer(env);
+                display("Requested download for: " + filename);
+            } catch (IOException ex) {
+                display("Error requesting download: " + ex.getMessage());
+            }
+        });
+
         userListB.addActionListener(e -> send("#who"));
 
         pmB.addActionListener(e -> {
@@ -209,7 +261,7 @@ public class ClientGUI extends JFrame implements ChatIF {
 
         // Final window settings
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setPreferredSize(new Dimension(420, 720)); // reasonably large
+        setPreferredSize(new Dimension(500, 820)); // reasonably large for list + controls
         pack();
         setLocationRelativeTo(null);
         setVisible(true);
@@ -221,7 +273,28 @@ public class ClientGUI extends JFrame implements ChatIF {
     }
 
     // display text in the message area (most recent at top)
+    // also handles special FTPLIST messages to populate the combo box
     public void display(String message) {
+        if (message == null) {
+            return;
+        }
+
+        if (message.startsWith("FTPLIST:")) {
+            String listString = message.substring("FTPLIST:".length());
+            String[] items = listString.isEmpty() ? new String[0] : listString.split(",", -1);
+            SwingUtilities.invokeLater(() -> {
+                DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
+                for (String s : items) {
+                    if (!s.isEmpty()) model.addElement(s);
+                }
+                fileListCombo.setModel(model);
+                if (model.getSize() > 0) fileListCombo.setSelectedIndex(0);
+                messageList.insert("File list updated (" + model.getSize() + " files)\n", 0);
+            });
+            return;
+        }
+
+        // Normal display behavior (insert at top)
         messageList.insert(message + "\n", 0);
     }
 }

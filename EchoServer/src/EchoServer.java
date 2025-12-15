@@ -2,9 +2,10 @@ import java.util.ArrayList;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 
 /**
- * EchoServer with #ftpUpload handling and null-safety improvements.
+ * EchoServer with #ftpUpload handling and #ftplist / #ftpget support.
  */
 public class EchoServer extends AbstractServer {
     //Class variables *************************************************
@@ -128,18 +129,6 @@ public class EchoServer extends AbstractServer {
 
             byte[] fileBytes = (byte[]) dataObj;
 
-            // Optional size limit to protect the server (10 MB example)
-            final long MAX_UPLOAD_BYTES = 10L * 1024L * 1024L;
-            if (fileBytes.length > MAX_UPLOAD_BYTES) {
-                String msg = "Error: upload exceeds maximum size (" + MAX_UPLOAD_BYTES + " bytes).";
-                System.out.println(msg + " From: " + client);
-                try {
-                    client.sendToClient(msg);
-                } catch (IOException ignore) {
-                }
-                return;
-            }
-
             // Sanitize filename (strip any path components)
             String safeName = new File(filename).getName();
 
@@ -173,6 +162,70 @@ public class EchoServer extends AbstractServer {
                 } catch (IOException ignore) {
                 }
             }
+            return;
+        }
+
+        // NEW: #ftplist - return list of filenames in uploads/
+        if (env.getCommand().equals("#ftplist")) {
+            File dir = new File("uploads");
+            ArrayList<String> list = new ArrayList<>();
+            if (dir.exists() && dir.isDirectory()) {
+                File[] files = dir.listFiles();
+                if (files != null) {
+                    for (File f : files) {
+                        if (f.isFile()) {
+                            list.add(f.getName());
+                        }
+                    }
+                }
+            }
+            Envelope returnEnv = new Envelope();
+            returnEnv.setCommand("ftplist"); // response command
+            returnEnv.setData(list);
+            try {
+                client.sendToClient(returnEnv);
+            } catch (IOException e) {
+                System.out.println("Failed to send ftplist to " + client);
+                e.printStackTrace();
+            }
+            return;
+        }
+
+        // NEW: #ftpget - send the requested file (if present) back to requesting client
+        if (env.getCommand().equals("#ftpget")) {
+            String filename = env.getArg();
+            if (filename == null) {
+                try {
+                    client.sendToClient("Error: missing filename for ftpget.");
+                } catch (IOException ignore) {
+                }
+                return;
+            }
+            String safeName = new File(filename).getName();
+            File f = new File("uploads", safeName);
+            if (!f.exists() || !f.isFile()) {
+                try {
+                    client.sendToClient("Error: file not found: " + safeName);
+                } catch (IOException ignore) {
+                }
+                return;
+            }
+            try {
+                byte[] data = Files.readAllBytes(f.toPath());
+                Envelope returnEnv = new Envelope();
+                returnEnv.setCommand("#ftpget"); // response command with file bytes
+                returnEnv.setArg(safeName);
+                returnEnv.setData(data);
+                client.sendToClient(returnEnv);
+            } catch (IOException e) {
+                System.out.println("Error reading file for ftpget: " + e.getMessage());
+                e.printStackTrace();
+                try {
+                    client.sendToClient("Error: could not read file: " + e.getMessage());
+                } catch (IOException ignore) {
+                }
+            }
+            return;
         }
     }
 
