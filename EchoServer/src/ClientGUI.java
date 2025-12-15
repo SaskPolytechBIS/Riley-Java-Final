@@ -12,6 +12,8 @@ import java.nio.file.Files;
  * - "Download" button that requests a file from the server (#ftpget)
  *
  * All previous comments and upload behavior preserved.
+ *
+ * Layout change: buttons are arranged in 2 rows × 5 columns at the bottom.
  */
 public class ClientGUI extends JFrame implements ChatIF {
 
@@ -49,7 +51,6 @@ public class ClientGUI extends JFrame implements ChatIF {
     private JScrollPane messageScroll = new JScrollPane(messageList);
 
     // File list combo for remote files (used by FTP File List / Download)
-    // This was previously commented out; now enabled and wired to server FTPLIST responses.
     private JComboBox<String> fileListCombo = new JComboBox<>();
 
     private File selectedFile = null;
@@ -87,15 +88,12 @@ public class ClientGUI extends JFrame implements ChatIF {
         main.add(Box.createRigidArea(new Dimension(0, 8)));
 
         // -------------------------------------------------------------
-        // New layout: bottom area composed of two columns:
-        // - leftColumn: stacked fields (Host, Port, UserId, Message) + fileListCombo
-        // - rightColumn: vertically stacked buttons (includes FTP buttons)
+        // Middle: fields (Host, Port, UserId, Message) + fileListCombo
         // -------------------------------------------------------------
 
-        // Left column (fields) using GridBagLayout (keeps existing spacing)
-        JPanel leftColumn = new JPanel(new GridBagLayout());
-        leftColumn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
-        leftColumn.setBackground(panelBg);
+        JPanel fieldsPanel = new JPanel(new GridBagLayout());
+        fieldsPanel.setBackground(panelBg);
+        fieldsPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
         GridBagConstraints c = new GridBagConstraints();
         c.insets = new Insets(6, 6, 6, 6);
         c.fill = GridBagConstraints.HORIZONTAL;
@@ -103,86 +101,87 @@ public class ClientGUI extends JFrame implements ChatIF {
         c.gridx = 0;
         c.gridy = 0;
         c.weightx = 0.0;
-        leftColumn.add(hostLB, c);
+        fieldsPanel.add(hostLB, c);
         c.gridx = 1;
         c.gridy = 0;
         c.weightx = 1.0;
-        leftColumn.add(hostTxF, c);
+        fieldsPanel.add(hostTxF, c);
 
         c.gridx = 0;
         c.gridy = 1;
         c.weightx = 0.0;
-        leftColumn.add(portLB, c);
+        fieldsPanel.add(portLB, c);
         c.gridx = 1;
         c.gridy = 1;
         c.weightx = 1.0;
-        leftColumn.add(portTxF, c);
+        fieldsPanel.add(portTxF, c);
 
         c.gridx = 0;
         c.gridy = 2;
         c.weightx = 0.0;
-        leftColumn.add(userIdLB, c);
+        fieldsPanel.add(userIdLB, c);
         c.gridx = 1;
         c.gridy = 2;
         c.weightx = 1.0;
-        leftColumn.add(userIdTxF, c);
+        fieldsPanel.add(userIdTxF, c);
 
         c.gridx = 0;
         c.gridy = 3;
         c.weightx = 0.0;
-        leftColumn.add(messageLB, c);
+        fieldsPanel.add(messageLB, c);
         c.gridx = 1;
         c.gridy = 3;
         c.weightx = 1.0;
-        leftColumn.add(messageTxF, c);
+        fieldsPanel.add(messageTxF, c);
 
         // Files combo row (FTP) - enabled
         c.gridx = 0;
         c.gridy = 4;
         c.weightx = 0.0;
-        leftColumn.add(new JLabel("Files:", JLabel.RIGHT), c);
+        fieldsPanel.add(new JLabel("Files:", JLabel.RIGHT), c);
         c.gridx = 1;
         c.gridy = 4;
         c.weightx = 1.0;
         fileListCombo.setPrototypeDisplayValue("selected-file-name.txt"); // makes combo a reasonable width
-        leftColumn.add(fileListCombo, c);
+        fieldsPanel.add(fileListCombo, c);
 
-        // Right column: vertically stacked buttons with consistent styling
-        JPanel rightColumn = new JPanel();
-        rightColumn.setLayout(new BoxLayout(rightColumn, BoxLayout.Y_AXIS));
-        rightColumn.setOpaque(true);
-        rightColumn.setBackground(panelBg);
-        rightColumn.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        main.add(fieldsPanel);
+        main.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        Font btnFont = new Font("SansSerif", Font.BOLD, 13);
-        // Order: User List, PM, Send, File List, Download, Save, Login, Logoff, Browse, Quit
-        JButton[] btns = new JButton[] {
-                userListB, pmB, sendB, ftpListB, downloadB, saveB, loginB, logoffB, browseB, quitB
+        // -------------------------------------------------------------
+        // Bottom: buttons arranged in a 2 x 5 grid (two rows, five columns)
+        // -------------------------------------------------------------
+        JPanel buttonGridWrapper = new JPanel(new BorderLayout());
+        buttonGridWrapper.setOpaque(false);
+        JPanel buttonGrid = new JPanel(new GridLayout(2, 5, 12, 12));
+        buttonGrid.setOpaque(false);
+
+        // Order of buttons in the grid (left-to-right, top-to-bottom):
+        JButton[] gridButtons = new JButton[] {
+                userListB, pmB, sendB, ftpListB, downloadB,
+                saveB, loginB, logoffB, browseB, quitB
         };
-        for (JButton b : btns) {
+
+        // Style each button consistently
+        Font btnFont = new Font("SansSerif", Font.BOLD, 13);
+        for (JButton b : gridButtons) {
             b.setBackground(buttonBg);
             b.setForeground(buttonFg);
             b.setFocusPainted(false);
             b.setFont(btnFont);
-            b.setMaximumSize(new Dimension(200, 36));
-            b.setAlignmentX(Component.CENTER_ALIGNMENT);
+            b.setPreferredSize(new Dimension(160, 42));
             b.setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createLineBorder(new Color(0xC8D7E6)),
                     BorderFactory.createEmptyBorder(6, 12, 6, 12)
             ));
-            rightColumn.add(b);
-            rightColumn.add(Box.createRigidArea(new Dimension(0, 8)));
+            buttonGrid.add(b);
         }
 
-        // Combine into bottomPanel
-        JPanel bottomPanel = new JPanel(new BorderLayout());
-        bottomPanel.setOpaque(true);
-        bottomPanel.setBackground(panelBg);
-        bottomPanel.setBorder(BorderFactory.createEmptyBorder(6, 6, 10, 6));
-        bottomPanel.add(leftColumn, BorderLayout.CENTER);
-        bottomPanel.add(rightColumn, BorderLayout.EAST);
+        // Add a little padding around the grid
+        buttonGridWrapper.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        buttonGridWrapper.add(buttonGrid, BorderLayout.CENTER);
 
-        main.add(bottomPanel);
+        main.add(buttonGridWrapper);
 
         // --- Actions ---
         loginB.addActionListener(e -> {
@@ -347,7 +346,7 @@ public class ClientGUI extends JFrame implements ChatIF {
 
         // Final window settings
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setPreferredSize(new Dimension(840, 640)); // wide enough for combo + buttons
+        setPreferredSize(new Dimension(920, 700)); // accommodate two-row button grid
         pack();
         setLocationRelativeTo(null);
         setVisible(true);
